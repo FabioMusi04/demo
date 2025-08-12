@@ -31,16 +31,22 @@ public class SecurityFilter extends OncePerRequestFilter {
     String token = this.recoverToken(request);
 
     if (token != null) {
-      String login = tokenService.validateToken(token);
-      Optional<User> userOptional = userRepository.findByEmail(login);
-
-      if (userOptional.isPresent()) {
-        User user = userOptional.get();
-        UsernamePasswordAuthenticationToken authentication = 
-          new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-      }
+        String login = tokenService.validateToken(token);
+        if (login != null) {
+            Optional<User> userOptional = userRepository.findByEmail(login);
+            if (userOptional.isPresent()) {
+                User user = userOptional.get();
+                System.out.println("Authorities: " + user.getAuthorities());
+                UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        } else {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+            return;
+        }
     }
+
 
     filterChain.doFilter(request, response);
   }

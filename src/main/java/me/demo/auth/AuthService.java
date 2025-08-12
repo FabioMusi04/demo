@@ -27,41 +27,38 @@ public class AuthService {
   private final TokenProvider tokenProvider;
 
   public AuthService(AuthenticationManager authenticationManager,
-             UserRepository userRepository,
-             PasswordEncoder encoder,
-             TokenProvider tokenProvider) {
+      UserRepository userRepository,
+      PasswordEncoder encoder,
+      TokenProvider tokenProvider) {
     this.authenticationManager = authenticationManager;
     this.userRepository = userRepository;
     this.encoder = encoder;
     this.tokenProvider = tokenProvider;
   }
 
-  public AuthResponse authenticateUser(LoginDTO user) {
+  public AuthResponse authenticateUser(LoginDTO loginDto) {
     Authentication authentication = authenticationManager.authenticate(
         new UsernamePasswordAuthenticationToken(
-            user.email,
-            user.password
-        )
-    );
+            loginDto.email,
+            loginDto.password));
 
     SecurityContextHolder.getContext().setAuthentication(authentication);
+
     UserDetails userDetails = (UserDetails) authentication.getPrincipal();
     String token = tokenProvider.generateAccessToken(userDetails);
 
-    User dbUser = userRepository.findByEmail(user.email)
+    User dbUser = userRepository.findByEmail(userDetails.getUsername())
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
     UserResponseDto userResponse = new UserResponseDto(
-      dbUser.getId(),
-      dbUser.getFirstName(),
-      dbUser.getLastName(),
-      dbUser.getEmail(),
-      dbUser.getDateOfBirth(),
-      dbUser.getRoles()
-    );
+        dbUser.getId(),
+        dbUser.getFirstName(),
+        dbUser.getLastName(),
+        dbUser.getEmail(),
+        dbUser.getDateOfBirth(),
+        dbUser.getRoles());
 
-    AuthResponse response = new AuthResponse(token, userResponse);
-    return response;
+    return new AuthResponse(token, userResponse);
   }
 
   public void registerUser(RegisterDTO user) {
@@ -70,16 +67,15 @@ public class AuthService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Error: Email is already in use!");
     }
-    
+
     String encodedPassword = encoder.encode(user.password);
     User newUser = new User(
-      user.firstName,
-      user.lastName,
-      user.email,
-      user.dateOfBirth,
-      encodedPassword,
-      null
-    );
+        user.firstName,
+        user.lastName,
+        user.email,
+        user.dateOfBirth,
+        encodedPassword,
+        null);
     userRepository.save(newUser);
   }
 }

@@ -4,7 +4,10 @@ import me.demo.auth.AuthDTO.AuthResponse;
 import me.demo.auth.AuthDTO.LoginDTO;
 import me.demo.auth.AuthDTO.RegisterDTO;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(path = "auth")
@@ -16,13 +19,14 @@ public class AuthController {
   }
 
   @PostMapping("/signin")
-  public AuthResponse authenticateUser(@RequestBody LoginDTO user) {
-    return authService.authenticateUser(user);
+  public ResponseEntity<AuthResponse> authenticateUser(@Valid @RequestBody LoginDTO loginDto) {
+    AuthResponse response = authService.authenticateUser(loginDto);
+    return ResponseEntity.ok(response);
   }
 
   @PostMapping("/signup")
-  public String registerUser(@RequestBody RegisterDTO user) {
+  public ResponseEntity<String> registerUser(@Valid @RequestBody RegisterDTO user) {
     authService.registerUser(user);
-    return "User registered successfully";
+    return ResponseEntity.ok("User registered successfully");
   }
 }

@@ -2,13 +2,16 @@ package me.demo.user;
 
 import java.util.List;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
 import me.demo.user.UserDTO.UserCreationDto;
 import me.demo.user.UserDTO.UserResponseDto;
 import me.demo.user.UserDTO.UserUpdateDto;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,9 +19,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-
 
 @RestController
 @RequestMapping(path = "users")
@@ -31,67 +35,80 @@ public class UserController {
   }
 
   @GetMapping()
-  public List<UserResponseDto> getAll(@RequestParam(defaultValue = "0") int page,
+  public ResponseEntity<List<UserResponseDto>> getAll(@RequestParam(defaultValue = "0") int page,
                 @RequestParam(defaultValue = "30") int size) {
-    return userService.getUsersPage(page, size);
+    List<UserResponseDto> users = userService.getUsersPage(page, size);
+    return ResponseEntity.ok(users);
   }
 
   @GetMapping("/{id}")
-  public UserResponseDto getById(@PathVariable String id) {
+  public ResponseEntity<UserResponseDto> getById(@PathVariable String id) {
     if (id == null || id.isEmpty()) {
-      throw new IllegalArgumentException("ID cannot be null or empty");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
     if (!id.matches("\\d+")) {
-      throw new IllegalArgumentException("ID must be a number");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
     long userId = Long.parseLong(id);
     if (userId <= 0) {
-      throw new IllegalArgumentException("ID must be a positive number");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
-    return userService.getUserById(userId);
+    UserResponseDto responsedDto = userService.getUserById(userId);
+    if (responsedDto == null) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+    return ResponseEntity.ok(responsedDto);
   }
 
   @PostMapping("")
-  public UserResponseDto create(@RequestBody UserCreationDto user) {
-    return userService.addUser(user);
+  public ResponseEntity<UserResponseDto> create(@Valid @RequestBody UserCreationDto user) {
+    UserResponseDto createdUser = userService.addUser(user);
+    return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
   }
 
   @PutMapping("/{id}")
-  public String update(@PathVariable String id, @RequestBody UserUpdateDto user) {
+  public ResponseEntity<String> update(@PathVariable String id, @RequestBody UserUpdateDto user) {
     if (id == null || id.isEmpty()) {
-      throw new IllegalArgumentException("ID cannot be null or empty");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ID cannot be null or empty");
     }
     if (!id.matches("\\d+")) {
-      throw new IllegalArgumentException("ID must be a number");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ID must be a number");
     }
     long userId = Long.parseLong(id);
     if (userId <= 0) {
-      throw new IllegalArgumentException("ID must be a positive number");
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ID must be a positive number");
     }
 
     boolean updated = userService.updateUser(userId, user);
     if (updated) {
-      return "User updated successfully";
+      return ResponseEntity.ok("User updated successfully");
     } else {
-      return "User not found";
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
     }
   }
 
   @DeleteMapping("/{id}")
-  public String delete(@PathVariable String id) {
+  public ResponseEntity<String> delete(@PathVariable String id) {
+    if (id == null || id.isEmpty() || !id.matches("\\d+") || Long.parseLong(id) <= 0) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid ID");
+    }
     boolean deleted = userService.deleteUser(Long.parseLong(id));
     if (deleted) {
-      return "User deleted successfully";
+      return ResponseEntity.ok("User deleted successfully");
     } else {
-      return "User not found";
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
     }
   }
 
   @GetMapping("/me")
-  public UserResponseDto getMe(@AuthenticationPrincipal UserDetails userDetails) {
+  public ResponseEntity<UserResponseDto> getMe(@AuthenticationPrincipal UserDetails userDetails) {
     if (userDetails == null) {
-      throw new IllegalArgumentException("User not authenticated");
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
-    return userService.getUserByEmail(userDetails.getUsername());
+    UserResponseDto user = userService.getUserByEmail(userDetails.getUsername());
+    if (user == null) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    }
+    return ResponseEntity.ok(user);
   }
 }
